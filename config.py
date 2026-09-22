@@ -9,4 +9,17 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    # Appwrite config
+    APPWRITE_ENDPOINT: str
+    APPWRITE_PROJECT_ID: str
+    APPWRITE_API_KEY: str
+    APPWRITE_BUCKET_ID: str
+
+    # Gemini Config
+    GEMINI_API_KEY: str
+
+    # Ollama config
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "qwen2.5:latest"
+
 settings = Settings()
