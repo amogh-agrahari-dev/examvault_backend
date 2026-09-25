@@ -126,13 +126,18 @@ async def get_documents(
 
 @router.get("/{document_id}")
 async def get_document(
-    document_id: uuid.UUID,
+    document_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    try:
+        doc_uuid = uuid.UUID(document_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=404, detail="Document not found")
+
     result = await db.execute(
         select(Document)
-        .where(Document.id == document_id, Document.user_id == current_user.id)
+        .where(Document.id == doc_uuid, Document.user_id == current_user.id)
     )
     doc = result.scalar_one_or_none()
     if not doc:
@@ -143,18 +148,23 @@ async def get_document(
 
 @router.get("/{document_id}/topics")
 async def get_document_topics(
-    document_id: uuid.UUID,
+    document_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    try:
+        doc_uuid = uuid.UUID(document_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=404, detail="Document not found")
+
     # Verify document ownership
-    result = await db.execute(select(Document).where(Document.id == document_id, Document.user_id == current_user.id))
+    result = await db.execute(select(Document).where(Document.id == doc_uuid, Document.user_id == current_user.id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Document not found")
         
     result = await db.execute(
         select(Topic)
-        .where(Topic.document_id == document_id)
+        .where(Topic.document_id == doc_uuid)
         .order_by(Topic.order_index.asc())
     )
     topics = result.scalars().all()
@@ -163,19 +173,24 @@ async def get_document_topics(
 
 @router.get("/topics/{topic_id}/flashcards")
 async def get_topic_flashcards(
-    topic_id: uuid.UUID,
+    topic_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    try:
+        topic_uuid = uuid.UUID(topic_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=404, detail="Topic not found")
+
     # Verify topic ownership
-    result = await db.execute(select(Topic).where(Topic.id == topic_id, Topic.user_id == current_user.id))
+    result = await db.execute(select(Topic).where(Topic.id == topic_uuid, Topic.user_id == current_user.id))
     topic = result.scalar_one_or_none()
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
         
     result = await db.execute(
         select(Flashcard)
-        .where(Flashcard.topic_id == topic_id)
+        .where(Flashcard.topic_id == topic_uuid)
         .order_by(Flashcard.order_index.asc())
     )
     flashcards = result.scalars().all()

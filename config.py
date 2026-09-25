@@ -20,6 +20,6 @@ class Settings(BaseSettings):
 
     # Ollama config
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "qwen2.5:latest"
+    OLLAMA_MODEL: str = "gemma2:9b"
 
 settings = Settings()
