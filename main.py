@@ -46,6 +46,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 allowed_origins = [
     "https://examvault-two.vercel.app",
     "https://examvault.vercel.app",
+    "https://examvault-utc3.onrender.com",
     "http://localhost:5173",
     "http://localhost:3000",
     "http://127.0.0.1:5173",
