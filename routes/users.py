@@ -66,6 +66,59 @@ class GlobalSearchResponse(BaseModel):
     notes: List[NoteSearchResult]
 
 
+class LeaderboardUserResponse(BaseModel):
+    rank: int
+    id: str
+    full_name: str
+    role: str
+    reputation_credits: int
+    joined_at: str
+    quizzes_taken: int
+    is_current_user: bool
+
+
+# ──── Leaderboard ────────────────────────────────────────────────────────
+
+@router.get("/leaderboard", response_model=List[LeaderboardUserResponse])
+async def get_credits_leaderboard(
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Returns top users ranked by reputation credits."""
+    query = (
+        select(User)
+        .order_by(User.reputation_credits.desc(), User.created_at.asc())
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    users = result.scalars().all()
+
+    leaderboard = []
+    for rank, u in enumerate(users, start=1):
+        # Count quizzes taken
+        q_count = await db.scalar(
+            select(func.count(QuizAttempt.id)).where(
+                QuizAttempt.user_id == u.id,
+                QuizAttempt.status == "submitted"
+            )
+        ) or 0
+
+        leaderboard.append(
+            LeaderboardUserResponse(
+                rank=rank,
+                id=str(u.id),
+                full_name=u.full_name,
+                role=u.role,
+                reputation_credits=u.reputation_credits,
+                joined_at=u.created_at.strftime("%b %Y") if u.created_at else "Member",
+                quizzes_taken=q_count,
+                is_current_user=u.id == current_user.id
+            )
+        )
+    return leaderboard
+
+
 # ──── Public Profile ─────────────────────────────────────────────────────
 
 @router.get("/{user_id}/profile", response_model=PublicProfileResponse)
