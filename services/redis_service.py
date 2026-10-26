@@ -59,18 +59,28 @@ async def init_redis() -> None:
         return
 
     try:
+        is_ssl = settings.REDIS_URL.startswith("rediss://")
+        redis_kwargs = {
+            "encoding": "utf-8",
+            "decode_responses": True,
+            "socket_timeout": 5.0,
+            "socket_connect_timeout": 5.0,
+            "retry_on_timeout": True,
+            "max_connections": 30,
+        }
+        if is_ssl:
+            redis_kwargs["ssl_cert_reqs"] = None
+
         redis_client = aioredis.from_url(
             settings.REDIS_URL,
-            encoding="utf-8",
-            decode_responses=True,
-            socket_timeout=2.0,
-            socket_connect_timeout=3.0,
-            retry_on_timeout=True,
-            max_connections=30
+            **redis_kwargs
         )
         # Test connection
         await redis_client.ping()
-        logger.info(f"Connected to Redis successfully at {settings.REDIS_URL}")
+        # Log masked URL (strip password)
+        import re
+        masked_url = re.sub(r"://([^:@]+):([^@]+)@", r"://\1:***@", settings.REDIS_URL)
+        logger.info(f"Connected to Redis successfully at {masked_url}")
     except Exception as e:
         logger.warning(f"Could not connect to Redis: {e}. Falling back to in-memory cache.")
         redis_client = None
