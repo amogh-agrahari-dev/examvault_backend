@@ -4,7 +4,11 @@ from sqlalchemy import String, Integer, DateTime, ForeignKey, Text, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from database import Base
-from typing import List
+from typing import List, Optional
+
+# Ensure referenced models are registered in SQLAlchemy metadata
+import models.auth_models
+import models.subject_models
 
 class Document(Base):
     __tablename__ = "documents"
@@ -16,6 +20,11 @@ class Document(Base):
     mime_type: Mapped[str] = mapped_column(String(100), nullable=True)
     file_size: Mapped[int] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="uploaded")
+    
+    subject_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("subjects.id"), index=True, nullable=True)
+    document_type: Mapped[str] = mapped_column(String(50), default="NOTES") # NOTES, PAST_PAPER
+    year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True) # For past papers
+    
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc)
@@ -27,6 +36,8 @@ class Document(Base):
     )
 
     topics: Mapped[List["Topic"]] = relationship("Topic", back_populates="document", cascade="all, delete-orphan")
+    subject: Mapped[Optional["Subject"]] = relationship("Subject", back_populates="documents")
+    past_questions: Mapped[List["PastPaperQuestion"]] = relationship("PastPaperQuestion", back_populates="document", cascade="all, delete-orphan")
 
 
 class Topic(Base):
@@ -57,9 +68,11 @@ class Flashcard(Base):
     question: Mapped[str] = mapped_column(Text, nullable=False)
     answer: Mapped[str] = mapped_column(Text, nullable=False)
     order_index: Mapped[int] = mapped_column(Integer, default=0)
+    image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc)
     )
 
     topic: Mapped["Topic"] = relationship("Topic", back_populates="flashcards")
+

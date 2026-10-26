@@ -1,0 +1,35 @@
+
+SAVITRIBAI PHULE PUNE UNIVERSITY
+B.E. (Information Technology) Examination - 2024
+Computer Networks & Security (Course Code: 414441)
+Time Allowed: 3 Hours                  Max Marks: 70
+Instructions to candidates:
+1. Answer Q.1 or Q.2, Q.3 or Q.4, Q.5 or Q.6, Q.7 or Q.8.
+2. Figures to the right indicate full marks.
+3. Assume suitable data if necessary.
+
+SECTION I
+Q.1 a) Explain the architecture of OSI model with neat diagram. [7]
+    b) Compare IPv4 and IPv6 packet header format. [6]
+OR
+Q.2 a) Explain Dijkstra routing algorithm with suitable graph example. [7]
+    b) Differentiate between Distance Vector and Link State routing. [6]
+
+Q.3 a) Explain TCP 3-way handshake mechanism with timing diagram. [8]
+    b) Describe Congestion control techniques: Leaky Bucket and Token Bucket. [7]
+OR
+Q.4 a) Explain sliding window protocols: Go-Back-N and Selective Repeat. [8]
+    b) Write short note on Socket Programming and RPC. [7]
+
+SECTION II
+Q.5 a) Explain Public Key Cryptography and RSA algorithm steps. [7]
+    b) What is Digital Signature? Explain how it provides authentication. [6]
+OR
+Q.6 a) Explain Diffie-Hellman Key Exchange algorithm with numerical example. [7]
+    b) Differentiate between Symmetric and Asymmetric key cryptography. [6]
+
+Q.7 a) Explain Firewall types and Packet Filtering mechanism. [8]
+    b) Write short notes on IPSec and SSL/TLS architecture. [7]
+OR
+Q.8 a) Explain Intrusion Detection System (IDS) and its types. [8]
+    b) What is Denial of Service (DoS) attack? Explain mitigation strategies. [7]
