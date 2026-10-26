@@ -75,11 +75,11 @@ app.include_router(notes_router)
 app.include_router(users_router)
 app.include_router(past_papers_router)
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root():
     return {"message": f"Welcome to {settings.PROJECT_NAME}"}
 
-@app.get("/api/v1/health")
+@app.api_route("/api/v1/health", methods=["GET", "HEAD"])
 async def health():
     return {
         "status": "healthy",
