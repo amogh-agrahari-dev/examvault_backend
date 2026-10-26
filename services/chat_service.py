@@ -6,6 +6,7 @@ from collections import Counter
 import httpx
 import json
 from config import settings
+from services.llm_router import generate_completion, generate_json_completion
 
 logger = logging.getLogger(__name__)
 
@@ -186,26 +187,18 @@ ANSWER:"""
 
 async def call_ollama_for_chat(prompt: str) -> str:
     """
-    Calls the Ollama LLM with the grounded prompt.
+    Calls the cloud dual-provider LLM router (Groq/Gemini) with grounded prompt.
     Returns the text response.
     """
-    async with httpx.AsyncClient(timeout=180.0) as client:
-        response = await client.post(
-            f"{settings.OLLAMA_BASE_URL}/api/generate",
-            json={
-                "model": settings.OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.1,  # Low temperature for factual grounded answers
-                    "top_p": 0.9,
-                    "num_ctx": 4096
-                }
-            }
+    try:
+        return await generate_completion(
+            prompt=prompt,
+            temperature=0.1,
+            max_tokens=2500
         )
-        response.raise_for_status()
-        data = response.json()
-        return data.get("response", "").strip()
+    except Exception as e:
+        logger.error(f"Error in call_ollama_for_chat: {e}")
+        return "I am currently unable to process your request due to an AI service error. Please try again shortly."
 
 
 def build_verification_prompt(claim: str, context_str: str) -> str:
@@ -247,30 +240,17 @@ You MUST respond strictly with valid JSON matching exactly this schema:
 
 async def call_ollama_for_verification(prompt: str) -> dict:
     """
-    Calls Ollama enforcing JSON format and returns the parsed dict.
+    Calls cloud dual-provider LLM router enforcing JSON format and returns parsed dict.
     """
-    async with httpx.AsyncClient(timeout=180.0) as client:
-        response = await client.post(
-            f"{settings.OLLAMA_BASE_URL}/api/generate",
-            json={
-                "model": settings.OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "format": "json",
-                "options": {
-                    "temperature": 0.0,
-                    "top_p": 0.9,
-                    "num_ctx": 4096
-                }
-            }
+    try:
+        return await generate_json_completion(
+            prompt=prompt,
+            temperature=0.0,
+            max_tokens=1000
         )
-        response.raise_for_status()
-        data = response.json()
-        raw_text = data.get("response", "{}").strip()
-        try:
-            return json.loads(raw_text)
-        except Exception:
-            return {
-                "verdict": "INSUFFICIENT_EVIDENCE",
-                "explanation": "Could not parse AI response."
-            }
+    except Exception as e:
+        logger.error(f"Error in call_ollama_for_verification: {e}")
+        return {
+            "verdict": "INSUFFICIENT_EVIDENCE",
+            "explanation": "Could not parse AI response or verification service is unavailable."
+        }

@@ -9,6 +9,7 @@ from models.document_models import Topic, Document
 from models.quiz_models import Quiz, QuizQuestion, QuizAttempt, QuizAnswer
 from config import settings
 from services.redis_service import get_cached_llm_result, set_cached_llm_result
+from services.llm_router import generate_json_completion
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ async def generate_quiz_questions_llm(
         count=question_count,
         difficulty=difficulty,
         types=sorted_types,
-        model=settings.OLLAMA_MODEL
+        model=settings.GROQ_MODEL
     )
     if cached and isinstance(cached, list) and len(cached) > 0:
         logger.info(f"⚡ [Redis Cache HIT] Loaded {len(cached)} quiz questions in 1ms")
@@ -65,44 +66,23 @@ STUDY MATERIAL:
 {context_text}
 """
     try:
-        async with httpx.AsyncClient(timeout=180.0) as client:
-            response = await client.post(
-                f"{settings.OLLAMA_BASE_URL}/api/generate",
-                json={
-                    "model": settings.OLLAMA_MODEL,
-                    "prompt": prompt,
-                    "format": "json",
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.3
-                    }
-                }
+        parsed_json = await generate_json_completion(prompt=prompt, temperature=0.3)
+        questions = parsed_json.get("questions", [])
+
+        if questions:
+            # Cache in Redis with 24h TTL
+            await set_cached_llm_result(
+                "quiz_questions",
+                context_text,
+                questions,
+                ttl=86400,
+                count=question_count,
+                difficulty=difficulty,
+                types=sorted_types,
+                model="groq-gemini"
             )
-            response.raise_for_status()
-            data = response.json()
-            
-            response_text = data.get("response", "")
-            if not response_text:
-                raise ValueError("Empty response from Ollama")
-                
-            parsed_json = json.loads(response_text)
-            questions = parsed_json.get("questions", [])
 
-            if questions:
-                # Cache in Redis with 24h TTL
-                await set_cached_llm_result(
-                    "quiz_questions",
-                    context_text,
-                    questions,
-                    ttl=86400,
-                    count=question_count,
-                    difficulty=difficulty,
-                    types=sorted_types,
-                    model=settings.OLLAMA_MODEL
-                )
-
-            return questions
-            
+        return questions
     except Exception as e:
         logger.error(f"Error generating quiz questions: {e}")
         return []
@@ -167,21 +147,8 @@ Return ONLY valid JSON with this exact schema:
 }}
 """
     try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            res = await client.post(
-                f"{settings.OLLAMA_BASE_URL}/api/generate",
-                json={
-                    "model": settings.OLLAMA_MODEL,
-                    "prompt": prompt,
-                    "format": "json",
-                    "stream": False,
-                    "options": {"temperature": 0.1}
-                }
-            )
-            res.raise_for_status()
-            data = res.json()
-            raw = data.get("response", "")
-            parsed = json.loads(raw)
+        parsed = await generate_json_completion(prompt, temperature=0.1)
+        if isinstance(parsed, dict):
             score = float(parsed.get("awarded_marks", 0.0))
             score = max(0.0, min(score, max_marks))
             return {
@@ -190,11 +157,12 @@ Return ONLY valid JSON with this exact schema:
             }
     except Exception as e:
         logger.error(f"Error evaluating short answer with LLM: {e}")
-        fallback_score = round(max_marks * 0.5, 2) if len(student_answer.strip()) > 10 else 0.0
-        return {
-            "awarded_marks": fallback_score,
-            "feedback": "Answer submitted and noted."
-        }
+    
+    fallback_score = round(max_marks * 0.5, 2) if len(student_answer.strip()) > 10 else 0.0
+    return {
+        "awarded_marks": fallback_score,
+        "feedback": "Answer submitted and noted."
+    }
 
 
 async def evaluate_coding_submission_llm(
@@ -232,21 +200,8 @@ Return ONLY valid JSON with this exact schema:
 }}
 """
     try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            res = await client.post(
-                f"{settings.OLLAMA_BASE_URL}/api/generate",
-                json={
-                    "model": settings.OLLAMA_MODEL,
-                    "prompt": prompt,
-                    "format": "json",
-                    "stream": False,
-                    "options": {"temperature": 0.1}
-                }
-            )
-            res.raise_for_status()
-            data = res.json()
-            raw = data.get("response", "")
-            parsed = json.loads(raw)
+        parsed = await generate_json_completion(prompt, temperature=0.1)
+        if isinstance(parsed, dict):
             score = float(parsed.get("awarded_marks", 0.0))
             score = max(0.0, min(score, max_marks))
             return {
@@ -255,9 +210,10 @@ Return ONLY valid JSON with this exact schema:
             }
     except Exception as e:
         logger.error(f"Error evaluating code with LLM: {e}")
-        fallback_score = round(max_marks * 0.75, 2) if len(student_code.strip()) > 30 else 0.0
-        return {
-            "awarded_marks": fallback_score,
-            "feedback": "Code submission recorded."
-        }
+    
+    fallback_score = round(max_marks * 0.75, 2) if len(student_code.strip()) > 30 else 0.0
+    return {
+        "awarded_marks": fallback_score,
+        "feedback": "Code submission recorded."
+    }
 

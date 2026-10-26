@@ -5,6 +5,7 @@ import httpx
 from typing import Dict, Any, Optional, List
 from config import settings
 from services.redis_service import get_cached_llm_result, set_cached_llm_result
+from services.llm_router import generate_completion
 
 logger = logging.getLogger(__name__)
 
@@ -315,36 +316,25 @@ PREVIOUS YEAR QUESTION PAPER CONTENT:
     parsed_result = None
 
     try:
-        logger.info(f"Attempting paper prediction using Ollama model llama3.2:latest for {total_marks} marks")
-        async with httpx.AsyncClient(timeout=18.0) as client:
-            res = await client.post(
-                f"{settings.OLLAMA_BASE_URL}/api/generate",
-                json={
-                    "model": "llama3.2:latest",
-                    "prompt": prompt,
-                    "format": "json",
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.25,
-                        "num_predict": 4096
-                    }
-                }
-            )
-            if res.status_code == 200:
-                data = res.json()
-                response_text = data.get("response", "").strip()
-                if response_text:
-                    parsed = _extract_json_from_llm_response(response_text)
-                    if parsed and _is_valid_prediction(parsed, total_marks):
-                        parsed_result = parsed
-                        logger.info("Successfully generated valid full-marks predicted paper using LLM.")
-                    else:
-                        calc_m = _calculate_total_paper_marks(parsed) if parsed else 0
-                        logger.warning(
-                            f"LLM output rejected: generated only {calc_m} marks (expected {total_marks}). Synthesizing complete exam paper."
-                        )
+        logger.info(f"Attempting paper prediction via LLM Router (Groq/Gemini) for {total_marks} marks")
+        response_text = await generate_completion(
+            prompt=prompt,
+            json_format=True,
+            temperature=0.25,
+            max_tokens=4096
+        )
+        if response_text:
+            parsed = _extract_json_from_llm_response(response_text)
+            if parsed and _is_valid_prediction(parsed, total_marks):
+                parsed_result = parsed
+                logger.info("Successfully generated valid full-marks predicted paper using LLM Router.")
+            else:
+                calc_m = _calculate_total_paper_marks(parsed) if parsed else 0
+                logger.warning(
+                    f"LLM output rejected: generated only {calc_m} marks (expected {total_marks}). Synthesizing complete exam paper."
+                )
     except Exception as err:
-        logger.warning(f"Ollama prediction failed or timed out: {err}")
+        logger.warning(f"LLM Router prediction failed or timed out: {err}")
 
     # If LLM succeeded and produced a valid complete exam paper
     if parsed_result:

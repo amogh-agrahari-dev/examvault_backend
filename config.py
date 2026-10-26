@@ -24,12 +24,15 @@ class Settings(BaseSettings):
     APPWRITE_API_KEY: str
     APPWRITE_BUCKET_ID: str
 
-    # Gemini Config
-    GEMINI_API_KEY: str
+    # Cloud Dual-Provider LLM Config (Groq + Google Gemini)
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-1.5-flash"
 
-    # Ollama config
+    # Legacy local Ollama config (Optional fallback)
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "gemma2:9b"
+    OLLAMA_MODEL: str = "llama3.2:latest"
 
     # Code Execution / Sandbox Config (optional, defaults to local isolated sandbox)
     JUDGE0_API_URL: str = ""

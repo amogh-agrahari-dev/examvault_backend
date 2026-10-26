@@ -715,12 +715,12 @@ async def generate_ai_flowchart(
     if not clean_prompt:
         raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
 
-    from services.ollama_service import generate_flowchart_graph
+    from services.llm_router import generate_flowchart_graph
     result = await generate_flowchart_graph(clean_prompt, req.model)
     if not result or not result.get("nodes"):
         raise HTTPException(
             status_code=502,
-            detail="Ollama was unable to generate a valid flowchart diagram. Ensure Ollama is running locally."
+            detail="The AI service was unable to generate a valid flowchart diagram. Please try again."
         )
 
     return result

@@ -14,7 +14,7 @@ from models.document_models import Document
 from models.quiz_models import Quiz, QuizQuestion
 from models.chat_models import DocumentChunk
 from routes.auth import get_current_user
-from services.ollama_service import extract_past_paper_questions, generate_new_question_from_context
+from services.llm_router import extract_past_paper_questions, generate_new_question_from_context
 from services.document_parser import extract_text, chunk_text
 import tempfile
 import os

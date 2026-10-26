@@ -30,6 +30,7 @@ import httpx
 
 from config import settings
 from services.code_sandbox_service import execute_code
+from services.llm_router import generate_json_completion
 
 logger = logging.getLogger(__name__)
 
@@ -1138,26 +1139,12 @@ Return ONLY valid JSON matching this exact structure:
 """
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                f"{settings.OLLAMA_BASE_URL}/api/generate",
-                json={
-                    "model": selected_model,
-                    "prompt": prompt,
-                    "format": "json",
-                    "stream": False,
-                    "options": {"temperature": 0.2}
-                }
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                raw_text = data.get("response", "").strip()
-                parsed = json.loads(raw_text)
-                if parsed.get("steps") and len(parsed.get("steps")) > 0:
-                    parsed["ai_powered"] = True
-                    return parsed
+        parsed = await generate_json_completion(prompt, temperature=0.2)
+        if isinstance(parsed, dict) and parsed.get("steps") and len(parsed.get("steps")) > 0:
+            parsed["ai_powered"] = True
+            return parsed
     except Exception as e:
-        logger.warning(f"Ollama trace generation failed ({e}).")
+        logger.warning(f"AI trace generation failed ({e}).")
 
     return {}
 

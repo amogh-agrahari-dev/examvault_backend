@@ -29,17 +29,33 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
-    await close_redis()
-    await engine.dispose()
+    try:
+        await close_redis()
+    except Exception:
+        pass
+    try:
+        await engine.dispose()
+    except Exception:
+        pass
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
 # Response compression: shrink large JSON (quizzes, notes, topics) by ~75%
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+allowed_origins = [
+    "https://examvault-two.vercel.app",
+    "https://examvault.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

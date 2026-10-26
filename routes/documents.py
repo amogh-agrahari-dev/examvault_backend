@@ -14,7 +14,7 @@ from models.document_models import Document, Topic, Flashcard
 from services.appwrite_service import upload_file_to_appwrite, download_file_from_appwrite, delete_file_from_appwrite
 from services.document_parser import extract_text, extract_document_content_and_images, chunk_text
 from services.vision_service import EXTRACTED_IMAGES_DIR
-from services.ollama_service import generate_flashcards
+from services.llm_router import generate_flashcards
 from services.flashcard_service import save_document, save_generated_content
 from services.redis_service import (
     get_cached_doc_topics, set_cached_doc_topics,

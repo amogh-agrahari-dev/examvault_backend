@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, date, timedelta, timezone
 from typing import Dict, Any, List, Optional
 from config import settings
+from services.llm_router import generate_json_completion
 
 logger = logging.getLogger(__name__)
 
@@ -75,49 +76,22 @@ Follow this exact JSON schema:
 }}
 """
 
-    ollama_model = settings.OLLAMA_MODEL or "gemma2:9b"
-    logger.info(f"Prompting Ollama model '{ollama_model}' for study plan generation ({days_count} days)...")
+    logger.info(f"Generating study plan via LLM Router ({days_count} days)...")
 
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(
-                f"{settings.OLLAMA_BASE_URL}/api/generate",
-                json={
-                    "model": ollama_model,
-                    "prompt": prompt,
-                    "format": "json",
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.3,
-                        "num_predict": 4096
-                    }
-                }
-            )
-            response.raise_for_status()
-            data = response.json()
-            response_text = data.get("response", "").strip()
-
-            if response_text:
-                try:
-                    # Strip any potential markdown wrappers
-                    clean_text = response_text
-                    if "```json" in clean_text:
-                        clean_text = clean_text.split("```json")[1].split("```")[0].strip()
-                    elif "```" in clean_text:
-                        clean_text = clean_text.split("```")[1].split("```")[0].strip()
-                    
-                    parsed = json.loads(clean_text)
-                    days_data = parsed.get("days", [])
-                    if isinstance(days_data, list) and len(days_data) > 0:
-                        logger.info(f"Successfully generated {len(days_data)} days with Ollama {ollama_model}!")
-                        return normalize_generated_days(days_data, days_count, daily_hours, documents_context)
-                except Exception as parse_err:
-                    logger.warning(f"JSON parsing error from Ollama response: {parse_err}. Falling back to synthesized plan.")
-
+        parsed = await generate_json_completion(
+            prompt=prompt,
+            temperature=0.3,
+            max_tokens=4096
+        )
+        days_data = parsed.get("days", [])
+        if isinstance(days_data, list) and len(days_data) > 0:
+            logger.info(f"Successfully generated {len(days_data)} days via LLM Router!")
+            return normalize_generated_days(days_data, days_count, daily_hours, documents_context)
     except Exception as e:
-        logger.error(f"Error querying Ollama ({ollama_model}): {e}. Using resilient pedagogical synthesizer.")
+        logger.error(f"Error querying LLM Router for study plan: {e}. Using resilient pedagogical synthesizer.")
 
-    # Resilient fallback synthesis if Ollama is unreachable or model is generating malformed JSON
+    # Resilient fallback synthesis if LLMs are unreachable or model is generating malformed JSON
     return synthesize_fallback_plan(days_count, daily_hours, strategy, documents_context)
 
 
